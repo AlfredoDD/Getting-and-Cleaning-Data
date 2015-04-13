@@ -3,21 +3,17 @@
 # Load necessary packages
 library("data.table")
 library("dplyr")
-library("tidyr")
 # First, create directory to contain data, and fix relative work environment
 if(!file.exists("Datazip")){
     dir.create("Datazip")
 }
 setwd("Datazip")
-getwd()
 # Now, we download the zip file
 download.file(url, destfile = "Dataset.zip", method = "curl")
-list.files(".")
 datedownloaded <- date()
 # To avoid a directory with blanks, we use junkpaths = TRUE
 unzip("Dataset.zip", junkpaths = TRUE)
-list.files(".")
-## Firstable, load from disk the values from test Data
+## Firstable, load from disk the values from Data (subject, y, X) files
 subject_test <- read.table("subject_test.txt", quote="\"")
 subject_train <- read.table("subject_train.txt", quote="\"")
 y_test <- read.table("y_test.txt", quote="\"")
@@ -27,6 +23,12 @@ X_train <- read.table("X_train.txt", quote="\"")
 # Put meaningful name to variable in "y" datasets
 names(y_test) <- "activity"
 names(y_train) <- "activity"
+# Change values into "y" datasets to activity names...
+activities <- c("WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING")
+y_test$activity <- as.factor(as.character(y_test$activity))
+y_train$activity <- as.factor(as.character(y_train$activity))
+levels(y_test$activity) <- activities
+levels(y_train$activity) <- activities
 # Put meaningful name to variable in "subject" datasets
 names(subject_test) <- "subject"
 names(subject_train) <- "subject"
@@ -42,21 +44,15 @@ names(X_test) <- features
 names(X_train) <- features
 X_testu <- X_test[, !duplicated(colnames(X_test))]
 X_trainu <- X_train[, !duplicated(colnames(X_train))]
-# In this moment, we can cbind the 3 tables to have all information in 1 table.
-table_test <- cbind(subject_test, y_test, X_test)
-table_train <- cbind(subject_train, y_train, X_train)
-##So we have rhe 2 tables, but we want tidy data, so we have to take off
-## duplicated columns if exists...the same tables ended with "u": unics..
-table_testu <- table_test[, !duplicated(colnames(table_test))]
-table_trainu <- table_train[, !duplicated(colnames(table_train))]
-# We want to follow in any future transformation the origin of data, so we'll
-# put a new colum in both tables with information on origin = test or train
-# for this, we use the dplyr package
-table_testu <- mutate(table_testu, origin = "test")
-table_trainu <- mutate(table_trainu, origin = "train")
-# Before to do an rbind, we have to be sure that the names of variables
-# in both structures are the same.
-names(table_testu) == names(table_trainu)
-final_table <- rbind(table_testu, table_trainu)
-#Now, we can create a new table with only the variables on mean and std.
-std_mean <- select(final_table, contains("mean()"), contains("std()"), contains("origin"), contains("subject"), contains("activity"))
+X_testu <- mutate(X_testu, origin = "test")
+X_trainu <- mutate(X_trainu, origin = "train")
+finalX <- rbind(X_testu, X_trainu)
+std_meanX <- select(finalX, contains("mean()"), contains("std()"), contains("origin"))
+subject<-rbind(subject_test, subject_train)
+activity<-rbind(y_test, y_train)
+stdmeanX <-cbind(origin = std_meanX[,67], std_meanX[,-67])
+tidy<-cbind(subject,activity,stdmeanX)
+tidy2 <- tidy %>%
+    group_by(subject, activity) %>%
+    summarise_each(funs(mean))
+tidy3 <- cbind( origin = tidy3$origin, tidy3[,1:2], tidy3[,-(1:3)])
